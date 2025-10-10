@@ -5,9 +5,6 @@ from dataclasses import dataclass
 from dataclasses_json import dataclass_json, LetterCase
 from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header, DataTable
-from textual.widgets import Static
-from rich.table import Table
-
 
 
 API_KEY = os.environ.get("FOOTBALL_API_KEY")
@@ -41,7 +38,6 @@ class Standing:
 
 def get_standings() -> list[Standing]:
     url = BASE_URL + "/competitions/PL/standings"
-    print(API_KEY)
     headers = { 'X-Auth-Token': API_KEY }
     params = {"season": "2025" }
 
