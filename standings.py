@@ -1,3 +1,5 @@
+from datetime import date, datetime
+from functools import cache
 import os
 import requests
 import json
@@ -5,17 +7,18 @@ from dataclasses import dataclass
 from dataclasses_json import dataclass_json, LetterCase
 from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header, Label, DataTable, Rule
-from textual.containers import Container, HorizontalGroup, VerticalScroll
+from textual.widget import Widget
+
+from textual.containers import Container, Horizontal, HorizontalGroup, VerticalScroll
 from textual.reactive import reactive
 from textual.css.query import NoMatches
-
 
 
 API_KEY = os.environ.get("FOOTBALL_API_KEY")
 BASE_URL = "http://api.football-data.org/v4"
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
-@dataclass
+@dataclass(frozen=True)
 class Team:
     id: str
     name: str
@@ -44,8 +47,14 @@ class Standing:
 @dataclass
 class Match:
     id: str
+    utc_date: str
     home_team: Team
     away_team: Team
+
+    @property
+    def date(self) -> date:
+        dt_object = datetime.fromisoformat(self.utc_date.replace('Z', '+00:00'))
+        return dt_object.date()
 
 
 def get_standings() -> list[Standing]:
@@ -62,6 +71,7 @@ def get_standings() -> list[Standing]:
     return table
 
 
+@cache
 def get_matches(team: Team):
     url = BASE_URL + f"/teams/{team.id}/matches/"
 
@@ -101,7 +111,13 @@ class StandingsTable(DataTable):
 
 
 class TeamView(VerticalScroll):
-    
+    DEFAULT_CSS = """
+    #matches {
+        height: auto;
+        layout: vertical;
+    }
+    """
+
     name = reactive("")
     matches: list[Match] = reactive([])
 
@@ -111,7 +127,7 @@ class TeamView(VerticalScroll):
     
     def watch_name(self, new_name: str) -> None:
         try:
-            self.query_one("#name_label", Label).update(new_name)
+            self.query_one("#name_label", Label).update(f"{new_name} - {len(self.matches)} matches")
         except NoMatches:
             # This can happen before the label has been initialized.
             pass
@@ -125,16 +141,33 @@ class TeamView(VerticalScroll):
             pass
 
         
-class MatchWidget(HorizontalGroup):
+class MatchWidget(Widget):
+    DEFAULT_CSS = """
+        MatchWidget {
+            height: 2;
+        }
+        """
+
     def __init__(self, match: Match):
         super().__init__()
         self.match = match
 
     def compose(self) -> ComposeResult:
-        yield Label(f"{self.match.home_team.name} v {self.match.away_team.name}")
+        # TODO: flesh out the Match class and then show more details here.
+        self.styles.height = 2
+
+        yield Container(
+            Label(self.match.date.strftime("%a %b %d")),
+            Horizontal(
+                Label(self.match.home_team.name),
+                Label(" vs "),
+                Label(self.match.away_team.name)
+            )
+        )
 
 
 class StandingsApp(App):
+
     BINDINGS = [("d", "toggle_dark", "Toggle dark mode")]
 
     def __init__(self):
