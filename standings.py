@@ -45,11 +45,36 @@ class Standing:
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
+class ScoreSnapshot:
+    home: int
+    away: int
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
+class Score:
+    winner: str
+    full_time: ScoreSnapshot
+
+    @property
+    def home(self):
+        return self.full_time.home
+
+    @property
+    def away(self):
+        return self.full_time.away
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
 class Match:
     id: str
     utc_date: str
     home_team: Team
     away_team: Team
+    status: str
+    matchday: int
+    score: Score
 
     @property
     def date(self) -> date:
@@ -116,6 +141,11 @@ class TeamView(VerticalScroll):
         height: auto;
         layout: vertical;
     }
+
+    #name_label {
+        padding: 1;
+        text-style: bold;
+    }
     """
 
     name = reactive("")
@@ -127,7 +157,7 @@ class TeamView(VerticalScroll):
     
     def watch_name(self, new_name: str) -> None:
         try:
-            self.query_one("#name_label", Label).update(f"{new_name} - {len(self.matches)} matches")
+            self.query_one("#name_label", Label).update(new_name)
         except NoMatches:
             # This can happen before the label has been initialized.
             pass
@@ -146,6 +176,10 @@ class MatchWidget(Widget):
         MatchWidget {
             height: 2;
         }
+
+        #match_date {
+            text-style: bold;
+        }
         """
 
     def __init__(self, match: Match):
@@ -154,16 +188,32 @@ class MatchWidget(Widget):
 
     def compose(self) -> ComposeResult:
         # TODO: flesh out the Match class and then show more details here.
-        self.styles.height = 2
 
-        yield Container(
-            Label(self.match.date.strftime("%a %b %d")),
-            Horizontal(
-                Label(self.match.home_team.name),
-                Label(" vs "),
-                Label(self.match.away_team.name)
+        if self.match.status == "FINISHED":
+            self.styles.height = 3
+            yield Container(
+                Label(self.match.date.strftime("%a %b %d"), id="match_date"),
+                Horizontal(
+                    Label(self.match.home_team.name),
+                    Label(" vs "),
+                    Label(self.match.away_team.name)
+                ),
+                Horizontal(
+                    Label(str(self.match.score.home)),
+                    Label(" - "),
+                    Label(str(self.match.score.away)),
+                )
             )
-        )
+        else:
+            self.styles.height = 2
+            yield Container(
+                Label(self.match.date.strftime("%a %b %d"), id="match_date"),
+                Horizontal(
+                    Label(self.match.home_team.name, id="home_label"),
+                    Label(" vs ", id="vs-label"),
+                    Label(self.match.away_team.name, id="away_label")
+                ),
+            )
 
 
 class StandingsApp(App):
