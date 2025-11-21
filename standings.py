@@ -179,7 +179,10 @@ class MatchWidget(Widget):
 
         #match_date {
             text-style: bold;
+            color: #d2d2e0;
         }
+
+
         """
 
     def __init__(self, match: Match):
@@ -190,7 +193,7 @@ class MatchWidget(Widget):
         # TODO: flesh out the Match class and then show more details here.
 
         if self.match.status == "FINISHED":
-            self.styles.height = 3
+            self.styles.height = 4
             yield Container(
                 Label(self.match.date.strftime("%a %b %d"), id="match_date"),
                 Horizontal(
@@ -205,7 +208,7 @@ class MatchWidget(Widget):
                 )
             )
         else:
-            self.styles.height = 2
+            self.styles.height = 3
             yield Container(
                 Label(self.match.date.strftime("%a %b %d"), id="match_date"),
                 Horizontal(
