@@ -20,9 +20,9 @@ python standings.py
 
 ## Keybindings
 
-Up/Down Arrows to move up and down the table or match view.
-Tab to switch between the match view and table.
-Ctrl-q to quit.
+- **Up/Down Arrows** to move up and down the table or match view.
+- **Tab** to switch between the match view and table.
+- **Ctrl-q** to quit.
 
 ## TODO
 
