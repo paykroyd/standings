@@ -139,56 +139,7 @@ class StandingsTable(DataTable):
                           str(team.goal_difference),
                           str(team.points))
 
-
-class TeamView(VerticalScroll):
-    DEFAULT_CSS = """
-    #matches {
-        height: auto;
-        layout: vertical;
-    }
-
-    #name_label {
-        padding: 1;
-        text-style: bold;
-    }
-    """
-
-    name = reactive("")
-    matches: list[Match] = reactive([])
-
-    def compose(self) -> ComposeResult:
-        yield Label(self.name, id="name_label")
-        yield Container(id="matches")
-    
-    def watch_name(self, new_name: str) -> None:
-        try:
-            self.query_one("#name_label", Label).update(new_name)
-        except NoMatches:
-            # This can happen before the label has been initialized.
-            pass
-
-    async def watch_matches(self, matches: list[Match]) -> None:
-        try:
-            container = self.query_one("#matches", Container) 
-            container.remove_children()
-            widgets = [MatchWidget(m) for m in matches]
-            await container.mount(*widgets)
-
-            scroll_target = None
-            for child in widgets:
-                child.refresh(layout=True)
-                if scroll_target is None and not child.match.finished:
-                    scroll_target = child
-
-            if scroll_target:
-                self.call_after_refresh(self.scroll_to_widget, scroll_target, animate=False)
-            else:
-                self.scroll_to(y=0, animate=False)
-
-        except NoMatches:
-            pass
-
-        
+            
 class MatchWidget(Widget):
     DEFAULT_CSS = """
         MatchWidget {
@@ -239,10 +190,88 @@ class MatchWidget(Widget):
             )
 
 
+class TeamView(VerticalScroll):
+    DEFAULT_CSS = """
+    #matches {
+        height: auto;
+        layout: vertical;
+    }
+
+    #name_label {
+        padding: 1;
+        text-style: bold;
+    }
+    """
+
+    name = reactive("")
+    matches: list[Match] = reactive([])
+
+    def compose(self) -> ComposeResult:
+        yield Label(self.name, id="name_label")
+        yield Container(id="matches")
+    
+    def watch_name(self, new_name: str) -> None:
+        try:
+            self.query_one("#name_label", Label).update(new_name)
+        except NoMatches:
+            # This can happen before the label has been initialized.
+            pass
+
+    async def watch_matches(self, matches: list[Match]) -> None:
+        try:
+            container = self.query_one("#matches", Container) 
+            container.remove_children()
+            widgets = [MatchWidget(m) for m in matches]
+            await container.mount(*widgets)
+            self.scroll_to_unplayed(widgets)
+        except NoMatches:
+            pass
+
+    def scroll_to_unplayed(self, widgets: list[MatchWidget]) -> None:
+        scroll_target = None
+        for child in widgets:
+            child.refresh(layout=True)
+            if scroll_target is None and not child.match.finished:
+                scroll_target = child
+                
+        if scroll_target:
+            self.call_after_refresh(self.scroll_to_widget, scroll_target, animate=False)
+        else:
+            self.scroll_to(y=0, animate=False)
+                
+        
+    def filter(self, filter_fn, scroll_to_unplayed=False) -> None:
+        try:
+            container = self.query_one("#matches", Container)
+            container.remove_children()
+            widgets = [MatchWidget(m) for m in self.matches if filter_fn(m)]
+            container.mount(*widgets)
+
+            if scroll_to_unplayed:
+                self.scroll_to_unplayed(widgets)
+            else:
+                self.scroll_to(y=0, animate=False)
+        except Nomatches:
+            pass
+
+    def filter_to_played(self) -> None:
+        self.filter(lambda m: m.finished)
+
+    def filter_to_unplayed(self) -> None:
+        self.filter(lambda m: not m.finished)
+
+    def show_all(self) -> None:
+        self.filter(lambda m: True, scroll_to_unplayed=True)
+
+        
+
+
 class StandingsApp(App):
 
     BINDINGS = [("d", "toggle_dark", "Toggle dark mode"),
-                ("s", "scroll_view", "Scroll to next game"),]
+                ("u", "filter_to_unplayed", "Show unplayed matches"),
+                ("p", "filter_to_played", "Show played matches"),
+                ("a", "show_all", "Show all matches"),]
 
     def __init__(self):
         super().__init__()
@@ -274,18 +303,22 @@ class StandingsApp(App):
             "textual-dark" if self.theme == "textual-light" else "textual-light"
         )
 
-    def action_scroll_view(self) -> None:
-        """Scrolls the team view to the next game."""
+    def action_filter_to_unplayed(self) -> None:
+        """Filters the team view to only unplayed matches."""
         team_view = self.query_one("#team_view", TeamView)
-        scroll_target = None
-        for child in team_view.query(MatchWidget):
-            child = cast(MatchWidget, child)
-            child.refresh(layout=True)
-            if scroll_target is None and not child.match.finished:
-                scroll_target = child
+        team_view.filter_to_unplayed()
 
-        if scroll_target:
-            self.call_after_refresh(team_view.scroll_to_widget, scroll_target)
+    def action_filter_to_played(self) -> None:
+        """Filters the team view to only unplayed matches."""
+        team_view = self.query_one("#team_view", TeamView)
+        team_view.filter_to_played()
+
+    def action_show_all(self) -> None:
+        """Filters the team view to only unplayed matches."""
+        team_view = self.query_one("#team_view", TeamView)
+        team_view.show_all()
+
+        
             
         
 if __name__ == '__main__':
