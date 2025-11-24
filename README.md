@@ -13,7 +13,7 @@ export FOOTBALL_API_KEY='<YOUR_KEY_HERE>'
 3. Install the pip requirements:
 
 ```sh
-pip install requirements.md
+pip install -r requirements.txt
 ```
 
 ## Run
