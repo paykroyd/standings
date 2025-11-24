@@ -1,17 +1,18 @@
+import json
+import os
+from dataclasses import dataclass
 from datetime import date, datetime
 from functools import cache
-import os
+from typing import cast
+
 import requests
-import json
-from dataclasses import dataclass
 from dataclasses_json import dataclass_json, LetterCase
 from textual.app import App, ComposeResult
-from textual.widgets import Footer, Header, Label, DataTable, Rule
-from textual.widget import Widget
-
-from textual.containers import Container, Horizontal, HorizontalGroup, VerticalScroll
-from textual.reactive import reactive
+from textual.containers import Container, Horizontal, VerticalScroll
 from textual.css.query import NoMatches
+from textual.reactive import reactive
+from textual.widget import Widget
+from textual.widgets import Footer, Header, Label, DataTable, Rule
 
 
 API_KEY = os.environ.get("FOOTBALL_API_KEY")
@@ -80,6 +81,10 @@ class Match:
     def date(self) -> date:
         dt_object = datetime.fromisoformat(self.utc_date.replace('Z', '+00:00'))
         return dt_object.date()
+
+    @property
+    def finished(self) -> bool:
+        return self.status == 'FINISHED'
 
 
 def get_standings() -> list[Standing]:
@@ -162,11 +167,24 @@ class TeamView(VerticalScroll):
             # This can happen before the label has been initialized.
             pass
 
-    def watch_matches(self, matches: list[Match]) -> None:
+    async def watch_matches(self, matches: list[Match]) -> None:
         try:
             container = self.query_one("#matches", Container) 
             container.remove_children()
-            container.mount(*[MatchWidget(m) for m in matches])
+            widgets = [MatchWidget(m) for m in matches]
+            await container.mount(*widgets)
+
+            scroll_target = None
+            for child in widgets:
+                child.refresh(layout=True)
+                if scroll_target is None and not child.match.finished:
+                    scroll_target = child
+
+            if scroll_target:
+                self.call_after_refresh(self.scroll_to_widget, scroll_target, animate=False)
+            else:
+                self.scroll_to(y=0, animate=False)
+
         except NoMatches:
             pass
 
@@ -174,7 +192,9 @@ class TeamView(VerticalScroll):
 class MatchWidget(Widget):
     DEFAULT_CSS = """
         MatchWidget {
-            height: 2;
+            height: 4;
+            height: 1fr;
+            border: solid green;
         }
 
         #match_date {
@@ -192,8 +212,8 @@ class MatchWidget(Widget):
     def compose(self) -> ComposeResult:
         # TODO: flesh out the Match class and then show more details here.
 
-        if self.match.status == "FINISHED":
-            self.styles.height = 4
+        if self.match.finished:
+            self.styles.height = 5
             yield Container(
                 Label(self.match.date.strftime("%a %b %d"), id="match_date"),
                 Horizontal(
@@ -208,7 +228,7 @@ class MatchWidget(Widget):
                 )
             )
         else:
-            self.styles.height = 3
+            self.styles.height = 4
             yield Container(
                 Label(self.match.date.strftime("%a %b %d"), id="match_date"),
                 Horizontal(
@@ -221,7 +241,8 @@ class MatchWidget(Widget):
 
 class StandingsApp(App):
 
-    BINDINGS = [("d", "toggle_dark", "Toggle dark mode")]
+    BINDINGS = [("d", "toggle_dark", "Toggle dark mode"),
+                ("s", "scroll_view", "Scroll to next game"),]
 
     def __init__(self):
         super().__init__()
@@ -253,7 +274,20 @@ class StandingsApp(App):
             "textual-dark" if self.theme == "textual-light" else "textual-light"
         )
 
+    def action_scroll_view(self) -> None:
+        """Scrolls the team view to the next game."""
+        team_view = self.query_one("#team_view", TeamView)
+        scroll_target = None
+        for child in team_view.query(MatchWidget):
+            child = cast(MatchWidget, child)
+            child.refresh(layout=True)
+            if scroll_target is None and not child.match.finished:
+                scroll_target = child
 
+        if scroll_target:
+            self.call_after_refresh(team_view.scroll_to_widget, scroll_target)
+            
+        
 if __name__ == '__main__':
     app = StandingsApp()
     app.run()
