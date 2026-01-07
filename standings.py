@@ -12,7 +12,7 @@ from textual.containers import Container, Horizontal, VerticalScroll
 from textual.css.query import NoMatches
 from textual.reactive import reactive
 from textual.widget import Widget
-from textual.widgets import Footer, Header, Label, DataTable, Rule
+from textual.widgets import Label, DataTable, Rule
 
 
 API_KEY = os.environ.get("FOOTBALL_API_KEY")
@@ -271,31 +271,51 @@ class StandingsApp(App):
   BINDINGS = [("d", "toggle_dark", "Toggle dark mode"),
               ("u", "filter_to_unplayed", "Show unplayed matches"),
               ("p", "filter_to_played", "Show played matches"),
-              ("a", "show_all", "Show all matches"),]
+              ("a", "show_all", "Show all matches"),
+              ("escape", "show_standings", "Back to standings"),]
+
+  current_view = reactive("standings")
 
   def __init__(self):
     super().__init__()
     self.standings = get_standings()
 
-  def on_data_table_row_highlighted(self, selection: DataTable.RowSelected):
-    team_view = self.query_one("#team_view", TeamView)
+  def on_data_table_row_selected(self, selection: DataTable.RowSelected):
     index = selection.data_table.get_row_index(selection.row_key)
     standing = self.standings[index]
     matches = get_matches(standing.team)
+
+    team_view = self.query_one("#team_view", TeamView)
     team_view.name = standing.team.name
     team_view.matches = matches
 
+    self.current_view = "matches"
+
   def compose(self) -> ComposeResult:
     """Create child widgets for the app."""
-    yield Header()
-    yield Footer()
     yield StandingsTable()
-    yield Rule(line_style="double")
     yield TeamView(id="team_view")
 
   def on_mount(self) -> None:
     table = self.query_one(DataTable)
     table.update_data(self.standings)
+    # Initially hide the team view
+    team_view = self.query_one("#team_view", TeamView)
+    team_view.display = False
+
+  def watch_current_view(self, view: str) -> None:
+    """Update visibility based on current view."""
+    table = self.query_one(DataTable)
+    team_view = self.query_one("#team_view", TeamView)
+
+    if view == "standings":
+      table.display = True
+      team_view.display = False
+      table.focus()
+    else:  # matches
+      table.display = False
+      team_view.display = True
+      team_view.focus()
 
   def action_toggle_dark(self) -> None:
     """An action to toggle dark mode."""
@@ -317,6 +337,10 @@ class StandingsApp(App):
     """Filters the team view to only unplayed matches."""
     team_view = self.query_one("#team_view", TeamView)
     team_view.show_all()
+
+  def action_show_standings(self) -> None:
+    """Return to the standings table view."""
+    self.current_view = "standings"
 
 
 
