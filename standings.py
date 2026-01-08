@@ -197,6 +197,13 @@ class MatchWidget(Widget):
       )
 
 
+VerticalScroll.BINDINGS = VerticalScroll.BINDINGS + [
+  ("j", "scroll_down", "Move cursor down"),
+  ("k", "scroll_up", "Move cursor up"),
+  ("ctrl+d", "page_down", "Move cursor down a page"),
+  ("ctrl+u", "page_up", "Move cursor up a page"),
+]
+
 class TeamView(VerticalScroll):
   DEFAULT_CSS = """
     #matches {
