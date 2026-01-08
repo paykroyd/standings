@@ -26,8 +26,13 @@ python standings.py
 
 ## Keybindings
 
-- **Up/Down Arrows** to move up and down the table or match view.
-- **Tab** to switch between the match view and table.
+- **Up/Down Arrows** to move up and down the standings table or match view.
+- **Enter** to select a team and view their matches.
+- **Escape** to return to the standings table.
+- **d** to toggle dark mode.
+- **u** to show only unplayed matches (when viewing matches).
+- **p** to show only played matches (when viewing matches).
+- **a** to show all matches (when viewing matches).
 - **Ctrl-q** to quit.
 
 ## TODO
