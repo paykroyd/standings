@@ -113,6 +113,14 @@ def get_matches(team: Team):
   return [Match.from_json(json.dumps(m)) for m in matches]
 
 
+DataTable.BINDINGS = DataTable.BINDINGS + [
+  ("j", "cursor_down", "Move cursor down"),
+  ("k", "cursor_up", "Move cursor up"),
+  ("ctrl+d", "page_down", "Move cursor down a page"),
+  ("ctrl+u", "page_up", "Move cursor up a page"),
+]
+
+
 class StandingsTable(DataTable):
   ROWS = ["Pos", "Club", "GP", "W", "D", "L", "GF", "GA", "GD", "PTS"] 
 
