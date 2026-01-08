@@ -27,7 +27,6 @@ class Team:
   tla: str
   crest: str
 
-
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class Standing:
@@ -272,7 +271,9 @@ class StandingsApp(App):
               ("u", "filter_to_unplayed", "Show unplayed matches"),
               ("p", "filter_to_played", "Show played matches"),
               ("a", "show_all", "Show all matches"),
-              ("escape", "show_standings", "Back to standings"),]
+              ("b", "show_standings", "Back to standings"),
+              ("q", "quit", "Quit"),
+            ]
 
   current_view = reactive("standings")
 
@@ -317,12 +318,6 @@ class StandingsApp(App):
       team_view.display = True
       team_view.focus()
 
-  def action_toggle_dark(self) -> None:
-    """An action to toggle dark mode."""
-    self.theme = (
-      "textual-dark" if self.theme == "textual-light" else "textual-light"
-    )
-
   def action_filter_to_unplayed(self) -> None:
     """Filters the team view to only unplayed matches."""
     team_view = self.query_one("#team_view", TeamView)
@@ -347,5 +342,5 @@ class StandingsApp(App):
 
 if __name__ == '__main__':
   app = StandingsApp()
-  app.run()
+  app.run(inline=True)
 
