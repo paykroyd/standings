@@ -147,73 +147,65 @@ class StandingsTable(DataTable):
                    str(team.points))
 
 
-class MatchWidget(Widget):
-  DEFAULT_CSS = """
-        MatchWidget {
-            height: 4;
-            height: 1fr;
-            border: solid green;
-        }
-
-        #match_date {
-            text-style: bold;
-            color: #d2d2e0;
-        }
-
-
-        """
-
-  def __init__(self, match: Match):
+class MatchesTable(DataTable):
+  def __init__(self):
     super().__init__()
-    self.match = match
+    self.matches = []
+    self.cursor_type = "row"
+    self.zebra_stripes = False  # Disable zebra stripes since we're using 2 rows per match
+    self.add_columns("Date", "Team", "Score", "MD")
 
-  def compose(self) -> ComposeResult:
-    # TODO: flesh out the Match class and then show more details here.
+  def update_data(self, matches: list[Match]) -> None:
+    self.matches = matches
+    self.clear()
 
-    if self.match.finished:
-      self.styles.height = 5
-      yield Container(
-        Label(self.match.date.strftime("%a %b %d"), id="match_date"),
-        Horizontal(
-          Label(self.match.home_team.name),
-          Label(" vs "),
-          Label(self.match.away_team.name)
-        ),
-        Horizontal(
-          Label(str(self.match.score.home)),
-          Label(" - "),
-          Label(str(self.match.score.away)),
-        )
-      )
-    else:
-      self.styles.height = 4
-      yield Container(
-        Label(self.match.date.strftime("%a %b %d"), id="match_date"),
-        Horizontal(
-          Label(self.match.home_team.name, id="home_label"),
-          Label(" vs ", id="vs-label"),
-          Label(self.match.away_team.name, id="away_label")
-        ),
+    for match in self.matches:
+      date_str = match.date.strftime("%a %b %d")
+      matchday_str = str(match.matchday)
+
+      if match.finished:
+        score_str = str(match.score.home)
+        score_str_away = str(match.score.away)
+      else:
+        score_str = ""
+        score_str_away = ""
+
+      # Add home team row
+      self.add_row(
+        date_str,
+        match.home_team.short_name,
+        score_str,
+        matchday_str
       )
 
+      # Add away team row (2nd row for this match)
+      self.add_row(
+        "",  # Empty date for second row
+        match.away_team.short_name,
+        score_str_away,
+        ""  # Empty matchday for second row
+      )
 
-VerticalScroll.BINDINGS = VerticalScroll.BINDINGS + [
-  ("j", "scroll_down", "Move cursor down"),
-  ("k", "scroll_up", "Move cursor up"),
-  ("ctrl+d", "page_down", "Move cursor down a page"),
-  ("ctrl+u", "page_up", "Move cursor up a page"),
-]
+  def scroll_to_unplayed(self) -> None:
+    """Scroll to the first unplayed match."""
+    for idx, match in enumerate(self.matches):
+      if not match.finished:
+        # Each match takes 2 rows, so multiply by 2
+        row_idx = idx * 2
+        if row_idx < self.row_count:
+          self.move_cursor(row=row_idx)
+          break
 
-class TeamView(VerticalScroll):
+
+class TeamView(Container):
   DEFAULT_CSS = """
-    #matches {
-        height: auto;
-        layout: vertical;
-    }
-
     #name_label {
         padding: 1;
         text-style: bold;
+    }
+
+    #matches_table {
+        height: 1fr;
     }
     """
 
@@ -222,7 +214,7 @@ class TeamView(VerticalScroll):
 
   def compose(self) -> ComposeResult:
     yield Label(self.name, id="name_label")
-    yield Container(id="matches")
+    yield MatchesTable(id="matches_table")
 
   def watch_name(self, new_name: str) -> None:
     try:
@@ -231,41 +223,22 @@ class TeamView(VerticalScroll):
       # This can happen before the label has been initialized.
       pass
 
-  async def watch_matches(self, matches: list[Match]) -> None:
+  def watch_matches(self, matches: list[Match]) -> None:
     try:
-      container = self.query_one("#matches", Container) 
-      container.remove_children()
-      widgets = [MatchWidget(m) for m in matches]
-      await container.mount(*widgets)
-      self.scroll_to_unplayed(widgets)
+      table = self.query_one("#matches_table", MatchesTable)
+      table.update_data(matches)
+      table.scroll_to_unplayed()
     except NoMatches:
       pass
 
-  def scroll_to_unplayed(self, widgets: list[MatchWidget]) -> None:
-    scroll_target = None
-    for child in widgets:
-      child.refresh(layout=True)
-      if scroll_target is None and not child.match.finished:
-        scroll_target = child
-
-    if scroll_target:
-      self.call_after_refresh(self.scroll_to_widget, scroll_target, animate=False)
-    else:
-      self.scroll_to(y=0, animate=False)
-
-
   def filter(self, filter_fn, scroll_to_unplayed=False) -> None:
     try:
-      container = self.query_one("#matches", Container)
-      container.remove_children()
-      widgets = [MatchWidget(m) for m in self.matches if filter_fn(m)]
-      container.mount(*widgets)
-
+      table = self.query_one("#matches_table", MatchesTable)
+      filtered_matches = [m for m in self.matches if filter_fn(m)]
+      table.update_data(filtered_matches)
       if scroll_to_unplayed:
-        self.scroll_to_unplayed(widgets)
-      else:
-        self.scroll_to(y=0, animate=False)
-    except Nomatches:
+        table.scroll_to_unplayed()
+    except NoMatches:
       pass
 
   def filter_to_played(self) -> None:
@@ -275,7 +248,7 @@ class TeamView(VerticalScroll):
     self.filter(lambda m: not m.finished)
 
   def show_all(self) -> None:
-      self.filter(lambda m: True, scroll_to_unplayed=True)
+    self.filter(lambda m: True, scroll_to_unplayed=True)
 
 
 
