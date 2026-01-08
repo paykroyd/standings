@@ -148,8 +148,8 @@ class StandingsTable(DataTable):
 
 
 class MatchesTable(DataTable):
-  def __init__(self):
-    super().__init__()
+  def __init__(self, id: str):
+    super().__init__(id=id)
     self.matches = []
     self.cursor_type = "row"
     self.zebra_stripes = False  # Disable zebra stripes since we're using 2 rows per match
