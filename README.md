@@ -22,21 +22,25 @@ For now just run it with the python command:
 
 ```sh
 python standings.py
+
+```
+
+## Build
+
+```sh
+pyinstaller standings.spec
 ```
 
 ## Keybindings
 
-- **Up/Down Arrows** to move up and down the standings table or match view.
+- **j/k** to move up and down the standings table or match view.
 - **Enter** to select a team and view their matches.
 - **Escape** to return to the standings table.
-- **d** to toggle dark mode.
 - **u** to show only unplayed matches (when viewing matches).
 - **p** to show only played matches (when viewing matches).
 - **a** to show all matches (when viewing matches).
-- **Ctrl-q** to quit.
+- **q** to quit.
 
 ## TODO
 
 - UI improvements for the match view
-- Better keybindings
-- Better runner / install situation.
