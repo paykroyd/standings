@@ -6,6 +6,7 @@ from functools import cache
 
 import requests
 from dataclasses_json import LetterCase, dataclass_json
+from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer
@@ -82,6 +83,15 @@ class Match:
     def finished(self) -> bool:
         return self.status == "FINISHED"
 
+    @property
+    def winner(self) -> Team | None:
+        if self.score.home > self.score.away:
+            return self.home_team
+        elif self.score.home == self.score.away:
+            return None
+        else:
+            return self.away_team
+
 
 def get_standings() -> list[Standing]:
     url = BASE_URL + "/competitions/PL/standings"
@@ -147,12 +157,17 @@ class StandingsTable(DataTable):
 
 
 class MatchesTable(DataTable):
-    def __init__(self):
+    def __init__(self, team: Team | None = None):
         super().__init__()
+        self.team = team
         self.matches = []
         self.cursor_type = "row"
         self.zebra_stripes = True
-        self.add_columns("Match Day", "Date", "Match", "Score")
+
+        cols = ["Match Day", "Date", "Match", "Score"]
+        if self.team:
+            cols.insert(2, "Result")
+        self.add_columns(*cols)
 
     def update_data(self, matches: list[Match]) -> None:
         self.matches = matches
@@ -164,11 +179,23 @@ class MatchesTable(DataTable):
             if match.finished:
                 score_str = f"{match.score.home} - {match.score.away}"
             else:
-                score_str = ""
+                score_str = Text("-", justify="center")
 
             match_str = f"{match.home_team.short_name} vs {match.away_team.short_name}"
-
-            self.add_row(str(match.matchday), date_str, match_str, score_str)
+            if self.team:
+                if not match.finished:
+                    result_cell = Text("-")
+                elif match.winner == self.team:
+                    result_cell = Text("W", style="bold green")
+                elif match.winner is None:
+                    result_cell = Text("D")
+                else:
+                    result_cell = Text("L", style="bold red")
+                self.add_row(
+                    str(match.matchday), date_str, result_cell, match_str, score_str
+                )
+            else:
+                self.add_row(str(match.matchday), date_str, match_str, score_str)
 
     def scroll_to_unplayed(self) -> None:
         """Scroll to the first unplayed match."""
@@ -188,14 +215,14 @@ class MatchesScreen(Screen):
         ("a", "show_all", "All"),
     ]
 
-    def __init__(self, team_name: str, matches: list[Match]):
+    def __init__(self, team: Team, matches: list[Match]):
         super().__init__()
-        self.team_name = team_name
+        self.team = team
         self.matches = matches
 
     def compose(self) -> ComposeResult:
-        table = MatchesTable()
-        table.border_title = self.team_name
+        table = MatchesTable(self.team)
+        table.border_title = self.team.short_name
         yield table
         yield Footer()
 
@@ -242,7 +269,7 @@ class StandingsApp(App):
         index = selection.data_table.get_row_index(selection.row_key)
         standing = self.standings[index]
         matches = get_matches(standing.team)
-        self.push_screen(MatchesScreen(standing.team.name, matches))
+        self.push_screen(MatchesScreen(standing.team, matches))
 
 
 if __name__ == "__main__":
