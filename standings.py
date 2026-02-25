@@ -151,10 +151,8 @@ class MatchesTable(DataTable):
         super().__init__()
         self.matches = []
         self.cursor_type = "row"
-        self.zebra_stripes = (
-            False  # Disable zebra stripes since we're using 2 rows per match
-        )
-        self.add_columns("Date", "Team", "Score", "MD")
+        self.zebra_stripes = True
+        self.add_columns("Match Day", "Date", "Match", "Score")
 
     def update_data(self, matches: list[Match]) -> None:
         self.matches = matches
@@ -162,25 +160,15 @@ class MatchesTable(DataTable):
 
         for match in self.matches:
             date_str = match.date.strftime("%a %b %d")
-            matchday_str = str(match.matchday)
 
             if match.finished:
-                score_str = str(match.score.home)
-                score_str_away = str(match.score.away)
+                score_str = f"{match.score.home} - {match.score.away}"
             else:
                 score_str = ""
-                score_str_away = ""
 
-            # Add home team row
-            self.add_row(date_str, match.home_team.short_name, score_str, matchday_str)
+            match_str = f"{match.home_team.short_name} vs {match.away_team.short_name}"
 
-            # Add away team row (2nd row for this match)
-            self.add_row(
-                "",  # Empty date for second row
-                match.away_team.short_name,
-                score_str_away,
-                "",  # Empty matchday for second row
-            )
+            self.add_row(str(match.matchday), date_str, match_str, score_str)
 
     def scroll_to_unplayed(self) -> None:
         """Scroll to the first unplayed match."""
