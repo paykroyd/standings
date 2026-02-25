@@ -174,10 +174,8 @@ class MatchesTable(DataTable):
         """Scroll to the first unplayed match."""
         for idx, match in enumerate(self.matches):
             if not match.finished:
-                # Each match takes 2 rows, so multiply by 2
-                row_idx = idx * 2
-                if row_idx < self.row_count:
-                    self.move_cursor(row=row_idx)
+                if idx < self.row_count:
+                    self.move_cursor(row=idx)
                     break
 
 
