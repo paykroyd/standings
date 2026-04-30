@@ -1,124 +1,12 @@
-import json
-import os
-from dataclasses import dataclass
-from datetime import date, datetime
-from functools import cache
+"""Core TUI standings application."""
 
-import requests
-from dataclasses_json import LetterCase, dataclass_json
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer
 
-API_KEY = os.environ.get("FOOTBALL_API_KEY")
-BASE_URL = "http://api.football-data.org/v4"
-
-
-@dataclass_json(letter_case=LetterCase.CAMEL)
-@dataclass(frozen=True)
-class Team:
-    id: str
-    name: str
-    short_name: str
-    tla: str
-    crest: str
-
-
-@dataclass_json(letter_case=LetterCase.CAMEL)
-@dataclass
-class Standing:
-    position: int
-    team: Team
-    played_games: int
-    form: str
-    won: int
-    draw: int
-    lost: int
-    points: int
-    goals_for: int
-    goals_against: int
-    goal_difference: int
-
-
-@dataclass_json(letter_case=LetterCase.CAMEL)
-@dataclass
-class ScoreSnapshot:
-    home: int
-    away: int
-
-
-@dataclass_json(letter_case=LetterCase.CAMEL)
-@dataclass
-class Score:
-    winner: str
-    full_time: ScoreSnapshot
-
-    @property
-    def home(self):
-        return self.full_time.home
-
-    @property
-    def away(self):
-        return self.full_time.away
-
-
-@dataclass_json(letter_case=LetterCase.CAMEL)
-@dataclass
-class Match:
-    id: str
-    utc_date: str
-    home_team: Team
-    away_team: Team
-    status: str
-    matchday: int
-    score: Score
-
-    @property
-    def date(self) -> date:
-        dt_object = datetime.fromisoformat(self.utc_date.replace("Z", "+00:00"))
-        return dt_object.date()
-
-    @property
-    def finished(self) -> bool:
-        return self.status == "FINISHED"
-
-    @property
-    def winner(self) -> Team | None:
-        if self.score.home > self.score.away:
-            return self.home_team
-        elif self.score.home == self.score.away:
-            return None
-        else:
-            return self.away_team
-
-
-def get_standings() -> list[Standing]:
-    url = BASE_URL + "/competitions/PL/standings"
-    headers = {"X-Auth-Token": API_KEY}
-    params = {"season": "2025"}
-
-    resp = requests.get(url, params=params, headers=headers)
-    resp.raise_for_status()
-
-    standings = resp.json()["standings"]
-    table = [Standing.from_json(json.dumps(row)) for row in standings[0]["table"]]
-
-    return table
-
-
-@cache
-def get_matches(team: Team):
-    url = BASE_URL + f"/teams/{team.id}/matches/"
-
-    headers = {"X-Auth-Token": API_KEY}
-    params = {"season": "2025", "competitions": "PL"}
-
-    resp = requests.get(url, params=params, headers=headers)
-    resp.raise_for_status()
-    matches = resp.json()["matches"]
-    return [Match.from_json(json.dumps(m)) for m in matches]
-
+from standings.api import get_matches, get_standings
+from standings.models import Match, Standing, Team
 
 DataTable.BINDINGS = DataTable.BINDINGS + [
     ("j", "cursor_down", "Move cursor down"),
@@ -270,8 +158,3 @@ class StandingsApp(App):
         standing = self.standings[index]
         matches = get_matches(standing.team)
         self.push_screen(MatchesScreen(standing.team, matches))
-
-
-if __name__ == "__main__":
-    app = StandingsApp()
-    app.run(inline=True)

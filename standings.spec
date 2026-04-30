@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['standings.py'],
+    ["main.py"],
     pathex=[],
     binaries=[],
     datas=[],
@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='standings',
+    name="standings",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
